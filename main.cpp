@@ -12,6 +12,7 @@
 
 // declare your own monolith dispatch table:
 MONOLITHIC_CMD_TABLE_START()
+
 { "demo", { .fa = chiar_demo_main } },
 
 {"backgroundNormalization", { .fa = prl_backgroundNormalization_sample_main }},
@@ -45,6 +46,7 @@ MONOLITHIC_CMD_TABLE_START()
 {"thinGuoHall", { .fa = prl_thinGuoHall_sample_main }},
 {"thinZhangSuen", { .fa = prl_thinZhangSuen_sample_main }},
 {"warp", { .fa = prl_warp_sample_main }},
+
 MONOLITHIC_CMD_TABLE_END();
 
 // load the monolithic core dispatcher
