@@ -1,46 +1,25 @@
-/*
-    MIT License
 
-    Copyright (c) 2017 Alexander Zaitsev
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-*/
-
-#include "Smoothing.hpp"
-
-#include "opencv2/imgproc.hpp"
-
-void prl::smooth(const cv::Mat& src, cv::Mat& dst, SmoothMethod method /*= SmoothMethod::Bilateral*/)
-{
-    switch (method)
-    {
-        case SmoothMethod::Median:
-            cv::medianBlur(src, dst, 5);
-            break;
-        case SmoothMethod::Gaussian:
-            cv::GaussianBlur(src, dst, cv::Size(11, 11), 10, 30);
-            break;
-        case SmoothMethod::Bilateral:
-            cv::bilateralFilter(src, dst, 5, 100, 100);
-            break;
-        default:
-            //TODO: Implement new algorithms
-            throw std::runtime_error("Smooth algorithm is not implemented yet");
-    }
-}
+// pixel cluster analysis by floodfilling the image to help detect the precise text/character/glyph contours.
+//
+// Of course, this assumes:
+// - we have succeeded in properly equalizing (see `Equalize.cpp`) the image
+// - we do not suffer from glyph connectivity a la Devanagori script where the glyphs in a word share a common
+//   top bar, or Arabic, where multiple characters are morphed in complicated ways to shape a word:
+//
+//   - Sanskrit: ॐ मणि पद्मे हूँ
+//   - Arabic: اَللّٰهُ, اَلرَّحْمَٰنُ, اَلرَّحِيمُ, اَلْحَمْدُ لِلّٰهِ رَبِّ الْعَالَمِينَ
+//   - Chinese :佛說大乘莊嚴寶王經
+//   - Devanagari: ॐ मणिपद्मे हूँ महाज्ञानचित्तोत्पाद चित्तस्य नवितर्क सर्वार्थ भूरि सिद्धक नपुराण नप्रत्यत्पन्न नमो लोकेश्वराय स्वाहा
+//   - Tibetan  : ཨོཾ་མ་ཎི་པ་དྨེ་ཧཱུྃ་
+//
+// Flood filling can be applied, using any starting point, with a specified "color tolerance", i.e. adjacent
+// pixels must match the current pixel's color within a certain tolerance bound instead of the usual *exact match*.
+// This helps to quickly floodfill an image zone, which would otherwise have required a two-stage process of
+// thresholding+floodfill to achieve the same result.
+//
+// We also produce a contour box coordinates set for each floodfilled pixel cluster: hence floodfilling can be used
+// to discover glyph contour box dimensions or similar measures, alongside the floodfill itself serving as a mask-producing
+// operation which can then be applied to the source in a subsequent image processing stage, e.g.
+// adversarial noise reduction by producing a glyph outline pixel mask which is then applied to the source image to
+// remove the noise pixels outside the glyph contours.
+//
